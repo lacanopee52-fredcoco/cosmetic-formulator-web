@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cosmetic Formulator - Web Version
 
-## Getting Started
+Application web de formulation cosmétique avec Next.js et Supabase.
 
-First, run the development server:
+## 🚀 Configuration
+
+### 1. Créer un projet Supabase
+
+1. Allez sur [supabase.com](https://supabase.com)
+2. Créez un nouveau projet
+3. Notez votre URL et votre clé anonyme
+
+### 2. Configurer les variables d'environnement
+
+Copiez `.env.local.example` vers `.env.local` et remplissez les valeurs :
+
+```bash
+cp .env.local.example .env.local
+```
+
+Puis éditez `.env.local` avec vos clés Supabase.
+
+### 3. Créer le schéma de base de données
+
+Dans votre projet Supabase, allez dans SQL Editor et exécutez le contenu de `supabase/schema.sql`.
+
+### 4. Installer les dépendances
+
+```bash
+npm install
+```
+
+### 5. Lancer l'application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'application sera accessible sur [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Structure du projet
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+cosmetic-formulator-web/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Routes d'authentification
+│   ├── dashboard/          # Tableau de bord
+│   └── api/               # API Routes
+├── components/            # Composants React
+├── lib/                   # Utilitaires
+│   └── supabase/         # Clients Supabase
+├── types/                 # Types TypeScript
+└── supabase/             # Schémas SQL
+```
 
-## Learn More
+## 🔐 Authentification
 
-To learn more about Next.js, take a look at the following resources:
+L'application utilise Supabase Auth pour l'authentification. Les utilisateurs peuvent :
+- S'inscrire avec email/password
+- Se connecter
+- Gérer leur profil
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 💾 Base de données
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Toutes les données sont stockées dans Supabase PostgreSQL avec Row Level Security (RLS) pour garantir que chaque utilisateur ne voit que ses propres données.
 
-## Deploy on Vercel
+## 📦 Fonctionnalités
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- ✅ Import de matières premières depuis Excel
+- ✅ Création et gestion de formules
+- ✅ Calcul automatique des coûts
+- ✅ Suivi de stabilité
+- ✅ Gestion des allergènes
+- ✅ Liste INCI
+- ✅ Notes structurées
+- ✅ Authentification utilisateur

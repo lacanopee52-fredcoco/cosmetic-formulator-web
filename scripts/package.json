@@ -1,0 +1,17 @@
+{
+  "name": "import-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "import": "tsx import-excel.ts",
+    "import:check": "tsx --check import-excel.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.7.0"
+  }
+}

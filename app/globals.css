@@ -24,3 +24,59 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Zone d'export pour impression : cachée à l'écran, visible à l'impression uniquement */
+.print-export-root {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* À l'impression : masquer la page et n'afficher que le contenu export (Liste MP, IFRA, etc.)
+   uniquement quand body a la classe print-export-active (ajoutée par printInPage).
+   Sinon (bouton Imprimer du bandeau), la page s'imprime normalement. */
+@media print {
+  body.print-export-active {
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.print-export-active * {
+    visibility: hidden;
+  }
+  /* Retirer complètement le reste de la page du flux (évite page 1 vide) */
+  body.print-export-active > *:not(#print-export-body-root) {
+    display: none !important;
+  }
+  body.print-export-active #print-export-body-root,
+  body.print-export-active #print-export-body-root * {
+    visibility: visible;
+  }
+  body.print-export-active #print-export-body-root {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body.print-export-active #print-export-body-root .print-export-body {
+    overflow: visible;
+    margin-top: 0;
+  }
+  body.print-export-active .print-export-root,
+  body.print-export-active .print-export-root * {
+    visibility: hidden !important;
+  }
+  body.print-export-active #print-export-body-root .ifra-annexe-table tr {
+    page-break-inside: avoid;
+  }
+}
