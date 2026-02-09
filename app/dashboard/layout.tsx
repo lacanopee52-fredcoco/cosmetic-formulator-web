@@ -31,8 +31,16 @@ export default async function DashboardLayout({
     )
   }
 
+  let inviteCode: string | null = null
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('invite_code')
+    .eq('id', organizationId)
+    .single()
+  if (org?.invite_code) inviteCode = org.invite_code
+
   return (
-    <OrganizationProvider organizationId={organizationId}>
+    <OrganizationProvider organizationId={organizationId} inviteCode={inviteCode}>
       <div className="min-h-screen bg-gray-50">
         <DashboardNav user={user} />
         <main className="container mx-auto px-4 py-8">

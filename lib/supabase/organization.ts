@@ -52,3 +52,36 @@ export async function createOrganizationForUser(
   }
   return newOrgId as string
 }
+
+/**
+ * Rejoint une organisation existante via un code d'invitation.
+ * Utilise la fonction SQL join_organization_by_code (SECURITY DEFINER).
+ */
+export async function joinOrganizationByCode(
+  supabase: SupabaseClient,
+  inviteCode: string
+): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .single()
+  if (existing?.organization_id) return existing.organization_id
+
+  const code = String(inviteCode || '').trim()
+  if (!code) return null
+
+  const { data: orgId, error } = await supabase.rpc('join_organization_by_code', {
+    invite_code_input: code,
+  })
+
+  if (error) {
+    console.error('[onboarding] join_organization_by_code:', error.message, error.code)
+    throw new Error(error.message)
+  }
+  if (!orgId) return null
+  return orgId as string
+}

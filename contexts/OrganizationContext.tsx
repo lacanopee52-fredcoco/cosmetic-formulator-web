@@ -2,16 +2,36 @@
 
 import { createContext, useContext, ReactNode } from 'react'
 
-const OrganizationContext = createContext<string | null>(null)
+type OrganizationContextValue = {
+  organizationId: string | null
+  inviteCode: string | null
+}
 
-export function OrganizationProvider({ organizationId, children }: { organizationId: string | null; children: ReactNode }) {
+const OrganizationContext = createContext<OrganizationContextValue>({
+  organizationId: null,
+  inviteCode: null,
+})
+
+export function OrganizationProvider({
+  organizationId,
+  inviteCode = null,
+  children,
+}: {
+  organizationId: string | null
+  inviteCode?: string | null
+  children: ReactNode
+}) {
   return (
-    <OrganizationContext.Provider value={organizationId}>
+    <OrganizationContext.Provider value={{ organizationId, inviteCode }}>
       {children}
     </OrganizationContext.Provider>
   )
 }
 
 export function useOrganizationId(): string | null {
-  return useContext(OrganizationContext)
+  return useContext(OrganizationContext).organizationId
+}
+
+export function useInviteCode(): string | null {
+  return useContext(OrganizationContext).inviteCode
 }

@@ -25,6 +25,10 @@ export default function SignupPage() {
         password,
         options: {
           data: { full_name: fullName.trim() || undefined },
+          emailRedirectTo:
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/auth/callback`
+              : undefined,
         },
       })
 

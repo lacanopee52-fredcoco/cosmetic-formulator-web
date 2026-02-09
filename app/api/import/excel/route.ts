@@ -77,7 +77,16 @@ export async function POST(req: Request) {
     if (!organizationId) return NextResponse.json({ error: 'Organisation introuvable' }, { status: 403 })
 
     const body = (await req.json()) as Payload
-    const ingredients = Array.isArray(body.ingredients) ? body.ingredients : []
+    // Dédupliquer les ingrédients par code normalisé (dernier gagnant) pour éviter "duplicate key"
+    const ingredientsRaw = Array.isArray(body.ingredients) ? body.ingredients : []
+    const ingredientsByCode = new Map<string, IngredientUpsert>()
+    for (const ing of ingredientsRaw) {
+      const raw = String(ing?.code ?? '').trim()
+      if (!raw) continue
+      const key = raw.toLowerCase()
+      ingredientsByCode.set(key, { ...ing, code: raw }) // garder le code original pour l'insert
+    }
+    const ingredients = Array.from(ingredientsByCode.values())
     const allergens = Array.isArray(body.allergens) ? body.allergens : []
     const tox = Array.isArray(body.toxicology_tests) ? body.toxicology_tests : []
     const baby = Array.isArray(body.baby_range) ? body.baby_range : []
@@ -154,11 +163,12 @@ export async function POST(req: Request) {
       babyUpserted += batch.length
     }
 
-    // PACKAGING (code emballage: description, prix_unitaire)
+    // PACKAGING (code emballage: description, prix_unitaire ; user_id requis si la colonne existe)
     let packagingUpserted = 0
-    if (packaging.length > 0) {
+    if (packaging.length > 0 && user?.id) {
       const batch = packaging.map((x) => ({
         organization_id: organizationId,
+        user_id: user.id,
         description: String(x.description || '').trim(),
         prix_unitaire: Number(x.prix_unitaire) || 0,
       })).filter((x) => x.description)

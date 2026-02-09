@@ -1,27 +1,41 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function OnboardingForm() {
+  const searchParams = useSearchParams()
   const [companyName, setCompanyName] = useState('')
   const [fullName, setFullName] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const invite = searchParams.get('invite')?.trim()
+    if (invite) setInviteCode(invite)
+  }, [searchParams])
+
+  const isJoining = inviteCode.trim().length > 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
     try {
+      const payload: { fullName?: string; companyName?: string; inviteCode?: string } = {
+        fullName: fullName.trim() || undefined,
+      }
+      if (isJoining) {
+        payload.inviteCode = inviteCode.trim()
+      } else {
+        payload.companyName = companyName.trim() || 'Mon organisation'
+      }
       const res = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: companyName.trim() || 'Mon organisation',
-          fullName: fullName.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -41,7 +55,9 @@ export default function OnboardingForm() {
       <div className="bg-white rounded-lg shadow-md p-8 border border-gray-200">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Bienvenue</h2>
         <p className="text-gray-600 mb-6">
-          Pour commencer, indiquez le nom de votre société. Vous utiliserez le logiciel comme premier utilisateur de cette organisation.
+          {isJoining
+            ? 'Un collègue vous a partagé un code pour rejoindre sa société. Saisissez-le ci-dessous pour accéder aux mêmes formules et données.'
+            : 'Indiquez le nom de votre société pour créer votre organisation, ou saisissez un code d\'invitation si un collègue vous en a donné un.'}
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -59,18 +75,33 @@ export default function OnboardingForm() {
             />
           </div>
           <div>
-            <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
-              Nom de votre société
+            <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-1">
+              Code d&apos;invitation <span className="text-gray-400 font-normal">(optionnel)</span>
             </label>
             <input
-              id="companyName"
+              id="inviteCode"
               type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Ex. La Canopée"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Ex. a1b2c3d4"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent font-mono"
             />
           </div>
+          {!isJoining && (
+            <div>
+              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
+                Nom de votre société
+              </label>
+              <input
+                id="companyName"
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Ex. La Canopée"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              />
+            </div>
+          )}
           {error && (
             <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
               {error}
@@ -81,7 +112,11 @@ export default function OnboardingForm() {
             disabled={loading}
             className="w-full bg-pink-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Création en cours...' : 'Continuer'}
+            {loading
+              ? (isJoining ? 'Connexion en cours...' : 'Création en cours...')
+              : isJoining
+                ? 'Rejoindre l\'organisation'
+                : 'Continuer'}
           </button>
         </form>
       </div>

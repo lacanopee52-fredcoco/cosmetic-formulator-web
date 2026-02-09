@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
+import { useInviteCode } from '@/contexts/OrganizationContext'
 
 interface DashboardNavProps {
   user: User
@@ -17,10 +18,31 @@ export default function DashboardNav({ user }: DashboardNavProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
+  const inviteCode = useInviteCode()
   const companyName = (user?.user_metadata?.company_name as string)?.trim() || DEFAULT_COMPANY_NAME
   const [editingCompany, setEditingCompany] = useState(false)
   const [companyInput, setCompanyInput] = useState(companyName)
   const [savingCompany, setSavingCompany] = useState(false)
+  const [copiedInvite, setCopiedInvite] = useState(false)
+
+  const copyInviteCode = () => {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode)
+    setCopiedInvite(true)
+    setTimeout(() => setCopiedInvite(false), 2000)
+  }
+
+  const sendInviteByEmail = () => {
+    if (!inviteCode || typeof window === 'undefined') return
+    const link = `${window.location.origin}/dashboard?invite=${encodeURIComponent(inviteCode)}`
+    const subject = encodeURIComponent('Invitation Cosmetic Formulator – rejoindre notre espace formules')
+    const body = encodeURIComponent(
+      `Bonjour,\n\nJe t'invite à rejoindre notre espace Cosmetic Formulator pour accéder aux mêmes formules et données.\n\n` +
+      `1. Ouvre ce lien : ${link}\n` +
+      `2. Crée un compte (ou connecte-toi) puis, sur l'écran d'accueil, saisis ce code d'invitation : ${inviteCode}\n\nÀ bientôt.`
+    )
+    window.location.href = `mailto:?subject=${subject}&body=${body}`
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -130,6 +152,27 @@ export default function DashboardNav({ user }: DashboardNavProps) {
           </div>
 
           <div className="flex items-center space-x-4">
+            {inviteCode && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Inviter un collègue :</span>
+                <code className="px-2 py-0.5 bg-gray-100 rounded font-mono">{inviteCode}</code>
+                <button
+                  type="button"
+                  onClick={copyInviteCode}
+                  className="px-2 py-0.5 text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded"
+                >
+                  {copiedInvite ? 'Copié !' : 'Copier'}
+                </button>
+                <button
+                  type="button"
+                  onClick={sendInviteByEmail}
+                  className="px-2 py-0.5 text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded"
+                  title="Ouvrir votre messagerie pour envoyer l’invitation"
+                >
+                  📧 Envoyer l’invitation
+                </button>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => {
