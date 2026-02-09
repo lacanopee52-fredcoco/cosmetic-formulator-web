@@ -191,6 +191,7 @@ export async function POST(req: Request) {
     for (let i = 0; i < ifraLimits.length; i += BATCH_IFRA) {
       const batch = ifraLimits.slice(i, i + BATCH_IFRA).map((x) => ({
         organization_id: organizationId,
+        ...(user?.id && { user_id: user.id }),
         category_number: String(x.category_number ?? '').trim(),
         description: String(x.description ?? '').trim(),
         ingredient_code: String(x.ingredient_code ?? '').trim(),

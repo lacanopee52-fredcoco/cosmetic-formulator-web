@@ -60,7 +60,6 @@ export default function PackagingAutocomplete({
       const { data: rawData, error } = await supabase
         .from('packaging')
         .select('description, prix_unitaire')
-        .eq('user_id', user.id)
         .limit(400)
 
       if (error) {

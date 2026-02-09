@@ -59,7 +59,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
 
   const searchMaterials = async (searchQuery: string) => {
     const trimmed = (searchQuery || '').trim()
-    if (trimmed.length < 2) {
+    if (trimmed.length < 1) {
       setSuggestions([])
       setShowSuggestions(false)
       return
@@ -79,21 +79,18 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
         return
       }
 
-      const pattern = `%${escapeIlike(trimmed)}%`
-      const { data: rawData, error } = await supabase
+      // Toujours charger tous les ingrédients de l'org (RLS) puis filtrer côté client (évite soucis RPC / encodage)
+      const { data: allData, error: selectError } = await supabase
         .from('ingredients')
         .select('*')
-        .eq('user_id', user.id)
-        .or(`code.ilike.${pattern},nom.ilike.${pattern}`)
         .order('nom', { ascending: true })
-        .limit(50)
-
-      if (error) {
-        console.error('❌ Erreur recherche matières:', error)
+        .limit(300)
+      if (selectError) {
+        console.error('❌ Erreur recherche matières:', selectError)
         return
       }
+      const list = (allData || []) as Ingredient[]
 
-      const list = (rawData || []) as Ingredient[]
       const normalizedQuery = normalizeForSearch(trimmed)
       const filtered = list.filter(
         (i) =>
@@ -114,7 +111,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
     const newQuery = e.target.value
     setQuery(newQuery)
     
-    if (newQuery.length >= 2) {
+    if (newQuery.length >= 1) {
       searchMaterials(newQuery)
     } else {
       setSuggestions([])
@@ -124,7 +121,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
 
   // Afficher les suggestions quand elles arrivent
   useEffect(() => {
-    if (suggestions.length > 0 && query.length >= 2) {
+    if (suggestions.length > 0 && query.length >= 1) {
       setShowSuggestions(true)
     }
   }, [suggestions, query])
@@ -212,7 +209,6 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
             .from('ingredients')
             .select('en_stock')
             .eq('code', code)
-            .eq('user_id', user.id)
             .single()
 
           setEnStock(data?.en_stock || false)
@@ -242,7 +238,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (query.length >= 2 && suggestions.length > 0) {
+            if (query.length >= 1 && suggestions.length > 0) {
               setShowSuggestions(true)
             }
           }}
@@ -292,7 +288,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
         </div>
       )}
 
-      {showSuggestions && suggestions.length === 0 && query.length >= 2 && (
+      {showSuggestions && suggestions.length === 0 && query.length >= 1 && (
         <div 
           className="fixed z-[9999] bg-white border border-gray-300 rounded-lg shadow-2xl"
           style={{ 

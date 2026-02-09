@@ -155,7 +155,6 @@ export default function INCIList({ formulaLines }: INCIListProps) {
             .from('ingredients')
             .select('inci, fournisseur_principal')
             .eq('code', line.ingredient_code)
-            .eq('user_id', user.id)
             .single()
 
           if (!material) {

@@ -15,7 +15,6 @@ export async function getIngredients(): Promise<Ingredient[]> {
   const { data, error } = await supabase
     .from('ingredients')
     .select('*')
-    .eq('user_id', user.id)
     .order('nom', { ascending: true })
 
   if (error) {
@@ -39,7 +38,6 @@ export async function searchIngredients(query: string): Promise<Ingredient[]> {
   const { data, error } = await supabase
     .from('ingredients')
     .select('*')
-    .eq('user_id', user.id)
     .or(`nom.ilike.%${query}%,code.ilike.%${query}%`)
     .order('nom', { ascending: true })
     .limit(50)
@@ -66,7 +64,6 @@ export async function getIngredient(code: string): Promise<Ingredient | null> {
     .from('ingredients')
     .select('*')
     .eq('code', code)
-    .eq('user_id', user.id)
     .single()
 
   if (error) {
@@ -109,7 +106,6 @@ export async function updateIngredient(ingredient: Ingredient): Promise<{ succes
       updated_at: new Date().toISOString(),
     })
     .eq('code', ingredient.code)
-    .eq('user_id', user.id)
 
   if (error) {
     throw new Error(`Erreur lors de la mise à jour: ${error.message}`)

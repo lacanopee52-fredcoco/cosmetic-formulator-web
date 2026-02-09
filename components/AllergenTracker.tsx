@@ -87,7 +87,6 @@ export default function AllergenTracker({ formulaLines }: AllergenTrackerProps) 
             .from('allergens')
             .select('allergen_name, percentage')
             .eq('ingredient_code', code)
-            .eq('user_id', user.id)
 
           if (allergens && allergens.length > 0) {
             const percentInFormula = line.percent || 0

@@ -833,7 +833,7 @@ export default function FormulationPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('ingredients').select('code, en_stock, inci, fournisseur_principal').in('code', codes).eq('user_id', user.id)
+      const { data } = await supabase.from('ingredients').select('code, en_stock, inci, fournisseur_principal').in('code', codes)
       if (!data) return
       const stockMap: Record<string, boolean> = {}
       const inciMap: Record<string, string> = {}
