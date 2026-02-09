@@ -12,6 +12,11 @@ function normalizeForSearch(s: string): string {
     .toLowerCase()
 }
 
+/** Pour la recherche par code : enlever tirets, espaces, pour matcher "ECHAMB" avec "ECH-AMB002" */
+function normalizeCodeForSearch(s: string): string {
+  return normalizeForSearch(s).replace(/[\s\-_\.]/g, '')
+}
+
 interface MaterialAutocompleteProps {
   value: string
   onSelect: (material: Ingredient) => void
@@ -92,10 +97,12 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
       const list = (allData || []) as Ingredient[]
 
       const normalizedQuery = normalizeForSearch(trimmed)
+      const normalizedQueryCode = normalizeCodeForSearch(trimmed)
       const filtered = list.filter(
         (i) =>
           normalizeForSearch(i.nom || '').includes(normalizedQuery) ||
-          normalizeForSearch(i.code || '').includes(normalizedQuery)
+          normalizeForSearch(i.code || '').includes(normalizedQuery) ||
+          (normalizedQueryCode.length >= 1 && normalizeCodeForSearch(i.code || '').includes(normalizedQueryCode))
       )
       const data = filtered.slice(0, 20)
 
