@@ -1001,7 +1001,6 @@ export default function FormulationPage() {
         image: formula.image || null,
         is_active: formula.is_active ?? false,
         improvement_goal: formula.improvement_goal?.trim() || null,
-        organization_id: organizationId!,
       }
 
       let formulaId: number
@@ -1084,7 +1083,6 @@ export default function FormulationPage() {
               image: formula.image || null,
               is_active: false,
               improvement_goal: formula.improvement_goal?.trim() || null,
-              organization_id: organizationId!,
             })
             .select('id')
             .single()
