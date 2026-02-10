@@ -897,63 +897,26 @@ export default function FormulationPage() {
 
   const loadFormula = async (id: number) => {
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const res = await fetch(`/api/formulas/${id}`, { credentials: 'include' })
+      const body = await res.json().catch(() => ({}))
 
-      if (!user) {
-        setMessage({ type: 'error', text: 'Utilisateur non authentifié' })
-        return
+      if (!res.ok) {
+        const msg = body.error ?? res.statusText ?? 'Erreur inconnue'
+        if (res.status === 401) {
+          setMessage({ type: 'error', text: 'Utilisateur non authentifié' })
+          return
+        }
+        throw new Error(msg)
       }
 
-      const { data, error } = await supabase
-        .from('formulas')
-        .select(`
-          *,
-          lines:formula_lines(*)
-        `)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      if (!data) {
+      const loadedFormula: Formula = body.formula
+      if (!loadedFormula) {
         setMessage({ type: 'error', text: 'Formule non trouvée' })
         return
       }
 
-      // Transformer les données
-      const loadedFormula: Formula = {
-        id: data.id,
-        name: data.name,
-        version: data.version || '',
-        formulator: data.formulator || '',
-        total_weight: data.total_weight || 1000,
-        notes: data.notes || {},
-        stability: data.stability || { days: [] },
-        image: data.image || undefined,
-        is_active: !!data.is_active,
-        improvement_goal: data.improvement_goal || '',
-        lines: (data.lines || []).map((line: any) => ({
-          id: line.id,
-          phase: line.phase,
-          ingredient_code: line.ingredient_code,
-          ingredient_name: line.ingredient_name,
-          percent: line.percent,
-          grams: line.grams,
-          notes: line.notes || '',
-          is_qsp: line.is_qsp || false,
-          prix_au_kilo: line.prix_au_kilo,
-          stock_indicator: line.stock_indicator || null,
-        })),
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      }
-
       setFormula(loadedFormula)
-      setFormulaId(data.id)
+      setFormulaId(loadedFormula.id!)
       setOriginalLoadedVersion(loadedFormula.version ?? '')
       const sig = computeSignature(loadedFormula)
       setLastSavedSignature(sig)
@@ -963,9 +926,9 @@ export default function FormulationPage() {
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error('Erreur chargement formule:', error)
-      setMessage({ 
-        type: 'error', 
-        text: `Erreur lors du chargement: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
+      setMessage({
+        type: 'error',
+        text: `Erreur lors du chargement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
       })
     }
   }

@@ -82,6 +82,7 @@ export async function POST(request: Request) {
     const nameTrim = (payload.name || '').trim()
     const versionTrim = (payload.version || '').trim()
     let formulaId: number
+    let redirectId: number | undefined
 
     let existingByNameVersion: { id: number } | null = null
     if (nameTrim && versionTrim) {
@@ -107,13 +108,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
       }
       formulaId = data.id
+      redirectId = formulaId
       await supabase.from('formula_lines').delete().eq('formula_id', formulaId)
-      return NextResponse.json({
-        ok: true,
-        formulaId,
-        savedWithStock: true,
-        redirectId: formulaId,
-      })
+      // Ne pas retourner : on insère les lignes plus bas
     }
 
     const saveAsNewVersion = Boolean(
@@ -150,12 +147,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
       }
       formulaId = data.id
-      return NextResponse.json({
-        ok: true,
-        formulaId,
-        savedWithStock: true,
-        redirectId: formulaId,
-      })
+      redirectId = formulaId
+      // Ne pas retourner : on insère les lignes plus bas
     } else {
       const { data, error } = await supabase
         .from('formulas')
@@ -210,7 +203,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, formulaId, savedWithStock })
+    return NextResponse.json({ ok: true, formulaId, savedWithStock, redirectId })
   } catch (e) {
     console.error('[api/formulas/save]', e)
     return NextResponse.json(
