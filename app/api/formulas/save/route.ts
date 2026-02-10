@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 type SaveBody = {
   payload: {
@@ -168,7 +169,8 @@ export async function POST(request: Request) {
 
     let savedWithStock = true
     if (payload.lines && payload.lines.length > 0) {
-      const linesForRpc = payload.lines.map((line, index) => ({
+      const linesWithStock = payload.lines.map((line, index) => ({
+        formula_id: formulaId,
         phase: line.phase,
         ingredient_code: line.ingredient_code,
         ingredient_name: line.ingredient_name,
@@ -179,23 +181,18 @@ export async function POST(request: Request) {
         prix_au_kilo: line.prix_au_kilo ?? null,
         stock_indicator: line.stock_indicator ?? stockIndicators[index] ?? null,
       }))
+      const linesWithoutStock = linesWithStock.map(
+        ({ stock_indicator: _, ...rest }) => rest
+      )
 
-      const { error: rpcError } = await supabase.rpc('insert_formula_lines', {
-        p_formula_id: formulaId,
-        p_lines: linesForRpc,
-      })
+      const admin = createAdminClient()
+      const { error: linesError } = await admin.from('formula_lines').insert(linesWithStock)
 
-      if (rpcError) {
-        const msg = rpcError.message || ''
+      if (linesError) {
+        const msg = linesError.message || ''
         const columnMissing = /stock_indicator|column.*does not exist|unknown column/i.test(msg)
         if (columnMissing) {
-          const linesWithoutStock = linesForRpc.map(
-            ({ stock_indicator: _, ...rest }) => rest
-          )
-          const { error: retryError } = await supabase.rpc('insert_formula_lines', {
-            p_formula_id: formulaId,
-            p_lines: linesWithoutStock,
-          })
+          const { error: retryError } = await admin.from('formula_lines').insert(linesWithoutStock)
           if (retryError) {
             return NextResponse.json(
               { ok: false, error: retryError.message },
@@ -205,7 +202,7 @@ export async function POST(request: Request) {
           savedWithStock = false
         } else {
           return NextResponse.json(
-            { ok: false, error: rpcError.message },
+            { ok: false, error: linesError.message },
             { status: 400 }
           )
         }

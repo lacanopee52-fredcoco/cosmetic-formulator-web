@@ -32,8 +32,6 @@ BEGIN
   DELETE FROM formula_lines WHERE formula_id = p_formula_id;
 
   IF jsonb_array_length(p_lines) > 0 THEN
-    -- Contourner la RLS : exécuter l'insert en tant que postgres (propriétaire de la table)
-    SET LOCAL role = 'postgres';
     INSERT INTO formula_lines (
       formula_id, phase, ingredient_code, ingredient_name, percent, grams,
       notes, is_qsp, prix_au_kilo, stock_indicator
