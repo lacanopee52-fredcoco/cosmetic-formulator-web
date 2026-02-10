@@ -354,6 +354,7 @@ export default function FormulationPage() {
           .from('produit_fini')
           .insert({
             organization_id: organizationId!,
+            user_id: user.id,
             name: nameToSave || null,
             formula_id: formulaIdToSave ?? null,
             formula_name: formulaName,
