@@ -168,8 +168,7 @@ export async function POST(request: Request) {
 
     let savedWithStock = true
     if (payload.lines && payload.lines.length > 0) {
-      const linesWithStock = payload.lines.map((line, index) => ({
-        formula_id: formulaId,
+      const linesForRpc = payload.lines.map((line, index) => ({
         phase: line.phase,
         ingredient_code: line.ingredient_code,
         ingredient_name: line.ingredient_name,
@@ -180,28 +179,33 @@ export async function POST(request: Request) {
         prix_au_kilo: line.prix_au_kilo ?? null,
         stock_indicator: line.stock_indicator ?? stockIndicators[index] ?? null,
       }))
-      const linesWithoutStock = linesWithStock.map(
-        ({ stock_indicator: _, ...rest }) => rest
-      )
 
-      const { error: linesError } = await supabase
-        .from('formula_lines')
-        .insert(linesWithStock)
-      if (linesError) {
-        const msg = linesError.message || ''
+      const { error: rpcError } = await supabase.rpc('insert_formula_lines', {
+        p_formula_id: formulaId,
+        p_lines: linesForRpc,
+      })
+
+      if (rpcError) {
+        const msg = rpcError.message || ''
         const columnMissing = /stock_indicator|column.*does not exist|unknown column/i.test(msg)
         if (columnMissing) {
-          const retry = await supabase.from('formula_lines').insert(linesWithoutStock)
-          if (retry.error) {
+          const linesWithoutStock = linesForRpc.map(
+            ({ stock_indicator: _, ...rest }) => rest
+          )
+          const { error: retryError } = await supabase.rpc('insert_formula_lines', {
+            p_formula_id: formulaId,
+            p_lines: linesWithoutStock,
+          })
+          if (retryError) {
             return NextResponse.json(
-              { ok: false, error: retry.error.message },
+              { ok: false, error: retryError.message },
               { status: 400 }
             )
           }
           savedWithStock = false
         } else {
           return NextResponse.json(
-            { ok: false, error: linesError.message },
+            { ok: false, error: rpcError.message },
             { status: 400 }
           )
         }
