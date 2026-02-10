@@ -983,192 +983,84 @@ export default function FormulationPage() {
     setSaving(true)
     setMessage(null)
 
+    const versionTrim = (formula.version || '').trim()
+    const payload = {
+      name: formula.name,
+      version: formula.version || null,
+      formulator: formula.formulator || null,
+      total_weight: formula.total_weight,
+      notes: formula.notes || {},
+      stability: formula.stability || { days: [] },
+      image: formula.image || null,
+      is_active: formula.is_active ?? false,
+      improvement_goal: formula.improvement_goal?.trim() || null,
+      id: formula.id,
+      lines: formula.lines?.map((line) => ({
+        phase: line.phase,
+        ingredient_code: line.ingredient_code,
+        ingredient_name: line.ingredient_name,
+        percent: line.percent,
+        grams: line.grams,
+        notes: line.notes || '',
+        is_qsp: line.is_qsp || false,
+        prix_au_kilo: line.prix_au_kilo ?? null,
+        stock_indicator: line.stock_indicator ?? null,
+      })),
+    }
+
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const res = await fetch('/api/formulas/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          payload,
+          originalLoadedVersion,
+          stockIndicators,
+        }),
+      })
+      const result = await res.json().catch(() => ({ ok: false, error: res.statusText }))
 
-      if (!user) {
-        throw new Error('Utilisateur non authentifié')
+      if (!result.ok) {
+        setMessage({
+          type: 'error',
+          text: `Erreur lors de l'enregistrement: ${result.error ?? res.statusText ?? 'Erreur inconnue'}`,
+        })
+        return
       }
 
-      const formulaData = {
-        name: formula.name,
-        version: formula.version || null,
-        formulator: formula.formulator || null,
-        total_weight: formula.total_weight,
-        notes: formula.notes || {},
-        stability: formula.stability || { days: [] },
-        image: formula.image || null,
-        is_active: formula.is_active ?? false,
-        improvement_goal: formula.improvement_goal?.trim() || null,
+      const { formulaId, savedWithStock, redirectId } = result
+      setFormula((prev) => ({ ...prev, id: formulaId }))
+      setFormulaId(formulaId)
+      const sig = computeSignature({ ...formula, id: formulaId })
+      setLastSavedSignature(sig)
+      setHasBaselineSignature(true)
+      setIsDirty(false)
+
+      if (redirectId !== undefined) {
+        setOriginalLoadedVersion(versionTrim)
+        const wasNewVersion =
+          Boolean(formula.id && originalLoadedVersion !== null && versionTrim !== (originalLoadedVersion || '').trim())
+        if (wasNewVersion) {
+          setFormula((prev) => ({ ...prev, stability: { start_date: undefined, days: [] } }))
+        }
+        router.replace(`/dashboard/formulation?id=${redirectId}`, { scroll: false })
       }
 
-      let formulaId: number
-
-      // Même nom + même version déjà en base → mettre à jour cette formule (ne pas en créer une nouvelle)
-      const nameTrim = (formula.name || '').trim()
-      const versionTrim = (formula.version || '').trim()
-      let existingByNameVersion: { id: number } | null = null
-      if (nameTrim && versionTrim) {
-        const { data: existing } = await supabase
-          .from('formulas')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('name', formula.name)
-          .eq('version', formula.version)
-          .maybeSingle()
-        if (existing?.id) existingByNameVersion = { id: existing.id }
-      }
-
-      if (existingByNameVersion) {
-        // Mettre à jour la formule existante (même nom + même version)
-        const { data, error } = await supabase
-          .from('formulas')
-          .update(formulaData)
-          .eq('id', existingByNameVersion.id)
-          .eq('user_id', user.id)
-          .select('id')
-          .single()
-
-        if (error) throw new Error(error.message)
-        formulaId = data.id
-
-        await supabase
-          .from('formula_lines')
-          .delete()
-          .eq('formula_id', formulaId)
-
-        if (formula.id !== formulaId) {
-          setFormula(prev => ({ ...prev, id: formulaId }))
-          setFormulaId(formulaId)
-          setOriginalLoadedVersion(versionTrim)
-          router.replace(`/dashboard/formulation?id=${formulaId}`, { scroll: false })
-        }
-      } else {
-        // Aucune formule (nom, version) existante : mise à jour par id ou création
-        const saveAsNewVersion = Boolean(
-          formula.id &&
-          originalLoadedVersion !== null &&
-          (formula.version || '').trim() !== (originalLoadedVersion || '').trim()
-        )
-
-        if (formula.id && !saveAsNewVersion) {
-          const { data, error } = await supabase
-            .from('formulas')
-            .update(formulaData)
-            .eq('id', formula.id)
-            .eq('user_id', user.id)
-            .select('id')
-            .single()
-
-          if (error) throw new Error(error.message)
-          formulaId = data.id
-
-          await supabase
-            .from('formula_lines')
-            .delete()
-            .eq('formula_id', formulaId)
-        } else if (saveAsNewVersion) {
-          // Nouvelle version : mise en stabilité réinitialisée (uniquement sur cette version)
-          const stabilityReset = { start_date: undefined, days: [] }
-          const { data, error } = await supabase
-            .from('formulas')
-            .insert({
-              name: formula.name,
-              version: formula.version || null,
-              formulator: formula.formulator || null,
-              total_weight: formula.total_weight,
-              notes: formula.notes || {},
-              stability: stabilityReset,
-              image: formula.image || null,
-              is_active: false,
-              improvement_goal: formula.improvement_goal?.trim() || null,
-            })
-            .select('id')
-            .single()
-
-          if (error) throw new Error(error.message)
-          formulaId = data.id
-          setFormula(prev => ({ ...prev, id: formulaId, stability: stabilityReset }))
-          setFormulaId(formulaId)
-          setOriginalLoadedVersion(versionTrim)
-          router.replace(`/dashboard/formulation?id=${formulaId}`, { scroll: false })
-        } else {
-          const { data, error } = await supabase
-            .from('formulas')
-            .insert(formulaData)
-            .select('id')
-            .single()
-
-          if (error) throw new Error(error.message)
-          formulaId = data.id
-        }
-      }
-
-      if (formula.lines && formula.lines.length > 0) {
-        const linesWithStock = formula.lines.map((line, index) => ({
-          formula_id: formulaId,
-          phase: line.phase,
-          ingredient_code: line.ingredient_code,
-          ingredient_name: line.ingredient_name,
-          percent: line.percent,
-          grams: line.grams,
-          notes: line.notes || '',
-          is_qsp: line.is_qsp || false,
-          prix_au_kilo: line.prix_au_kilo || null,
-          stock_indicator: line.stock_indicator || stockIndicators[index] || null,
-        }))
-        const linesWithoutStock = linesWithStock.map(({ stock_indicator: _, ...rest }) => rest)
-
-        let { error: linesError } = await supabase
-          .from('formula_lines')
-          .insert(linesWithStock)
-
-        let savedWithStock = true
-        if (linesError) {
-          const msg = linesError.message || ''
-          const columnMissing = /stock_indicator|column.*does not exist|unknown column/i.test(msg)
-          if (columnMissing) {
-            const { error: retryError } = await supabase
-              .from('formula_lines')
-              .insert(linesWithoutStock)
-            if (retryError) throw new Error(retryError.message)
-            savedWithStock = false
-          } else {
-            throw new Error(linesError.message)
-          }
-        }
-
-        setFormula(prev => ({ ...prev, id: formulaId }))
-        const sig = computeSignature({ ...formula, id: formulaId })
-        setLastSavedSignature(sig)
-        setHasBaselineSignature(true)
-        setIsDirty(false)
-        if (savedWithStock) {
-          setMessage({ type: 'success', text: 'Formule enregistrée avec succès !' })
-          setTimeout(() => setMessage(null), 3000)
-        } else {
-          setMessage({
-            type: 'success',
-            text: 'Formule enregistrée. Pour sauvegarder les carrés de couleur (stock), exécutez dans Supabase → SQL : ALTER TABLE formula_lines ADD COLUMN IF NOT EXISTS stock_indicator TEXT;',
-          })
-          setTimeout(() => setMessage(null), 10000)
-        }
-      } else {
-        setFormula(prev => ({ ...prev, id: formulaId }))
-        const sig = computeSignature({ ...formula, id: formulaId })
-        setLastSavedSignature(sig)
-        setHasBaselineSignature(true)
-        setIsDirty(false)
+      if (savedWithStock) {
         setMessage({ type: 'success', text: 'Formule enregistrée avec succès !' })
         setTimeout(() => setMessage(null), 3000)
+      } else {
+        setMessage({
+          type: 'success',
+          text: 'Formule enregistrée. Pour sauvegarder les carrés de couleur (stock), exécutez dans Supabase → SQL : ALTER TABLE formula_lines ADD COLUMN IF NOT EXISTS stock_indicator TEXT;',
+        })
+        setTimeout(() => setMessage(null), 10000)
       }
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Erreur inconnue')
       console.error('Erreur lors de l\'enregistrement:', error)
-      setMessage({ 
-        type: 'error', 
-        text: `Erreur lors de l'enregistrement: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
-      })
+      setMessage({ type: 'error', text: `Erreur lors de l'enregistrement: ${errMsg}` })
     } finally {
       setSaving(false)
     }
