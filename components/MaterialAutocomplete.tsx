@@ -107,7 +107,7 @@ export default function MaterialAutocomplete({ value, onSelect, onCodeClick, ref
       const seen = new Set<string>()
       const list: Ingredient[] = []
       for (const i of [...byCode, ...byNom]) {
-        const key = `${(i as Record<string, unknown>)['organization_id'] ?? ''}-${i.code ?? ''}`
+        const key = `${String((i as unknown as Record<string, unknown>)['organization_id'] ?? '')}-${i.code ?? ''}`
         if (!seen.has(key)) {
           seen.add(key)
           list.push(i)
