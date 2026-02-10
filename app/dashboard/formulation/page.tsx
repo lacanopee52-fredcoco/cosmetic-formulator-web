@@ -785,6 +785,7 @@ export default function FormulationPage() {
     }
   }
 
+
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
       if (produitFiniDropdownRef.current && !produitFiniDropdownRef.current.contains(e.target as Node)) {
@@ -1643,7 +1644,6 @@ export default function FormulationPage() {
                 >
                   {produitFiniSaving ? 'Enregistrement…' : 'Enregistrer ce calcul'}
                 </button>
-                {produitFiniSaveError && (
                   <p className="text-sm text-red-600 mt-2">{produitFiniSaveError}</p>
                 )}
                 {produitFiniShowTableHelp && (

@@ -112,7 +112,7 @@ export default function NotesResultsMenu({ notes, onChange }: NotesResultsMenuPr
                       />
                       {/* Icône photo uniquement pour Aspect et Microscope */}
                       {(category.key === 'aspect' || category.key === 'microscope') && (
-                        <div className="mt-2 flex items-center gap-2 shrink-0">
+                        <div className="mt-2 flex items-center gap-2 shrink-0 min-w-0 overflow-visible">
                           <PhotoIcon
                             photoUrl={photoUrl}
                             categoryLabel={category.label}
@@ -132,7 +132,7 @@ export default function NotesResultsMenu({ notes, onChange }: NotesResultsMenuPr
   )
 }
 
-/** Icône photo : clic pour ajouter/changer. Agrandissement au survol uniquement, dans un portail (une seule image, pas de superposition). */
+/** Icône photo : clic sur l’icône = ajouter/changer la photo ; bouton « Aperçu » = ouvrir l’image en grand. */
 function PhotoIcon({
   photoUrl,
   categoryLabel,
@@ -143,11 +143,10 @@ function PhotoIcon({
   onChange: (dataUrl: string | null) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const iconButtonRef = useRef<HTMLButtonElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
-  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** URL figée à l’ouverture pour éviter que les re-renders parent ne fassent disparaître la modal (clignotement). */
+  const previewPhotoUrlRef = useRef<string | undefined>(undefined)
   const [showPreview, setShowPreview] = useState(false)
-  const [previewPosition, setPreviewPosition] = useState<{ top: number; left: number } | null>(null)
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -159,85 +158,53 @@ function PhotoIcon({
   }
 
   const handleIconClick = () => {
-    if (openTimerRef.current) {
-      clearTimeout(openTimerRef.current)
-      openTimerRef.current = null
-    }
-    setShowPreview(false)
-    setPreviewPosition(null)
     inputRef.current?.click()
   }
 
-  const handleIconMouseEnter = () => {
+  const openPreview = () => {
     if (!photoUrl) return
-    if (openTimerRef.current) return
-    openTimerRef.current = setTimeout(() => {
-      openTimerRef.current = null
-      const btn = iconButtonRef.current
-      if (btn) {
-        const rect = btn.getBoundingClientRect()
-        setPreviewPosition({ left: rect.left, top: rect.top })
-        setShowPreview(true)
-      }
-    }, 150)
-  }
-
-  const handleIconMouseLeave = () => {
-    if (openTimerRef.current) {
-      clearTimeout(openTimerRef.current)
-      openTimerRef.current = null
-    }
-    closePreview()
+    previewPhotoUrlRef.current = photoUrl
+    setShowPreview(true)
   }
 
   const closePreview = () => {
     setShowPreview(false)
-    setPreviewPosition(null)
+    previewPhotoUrlRef.current = undefined
   }
   const closePreviewRef = useRef(closePreview)
   closePreviewRef.current = closePreview
 
   const handleExportImage = () => {
-    if (!photoUrl) return
-    const ext = photoUrl.startsWith('data:image/png') ? 'png' : 'jpg'
+    const url = previewPhotoUrlRef.current || photoUrl
+    if (!url) return
+    const ext = url.startsWith('data:image/png') ? 'png' : 'jpg'
     const a = document.createElement('a')
-    a.href = photoUrl
+    a.href = url
     a.download = `photo-${categoryLabel.replace(/\s+/g, '-')}.${ext}`
     a.click()
   }
 
   useEffect(() => {
-    if (!showPreview || !photoUrl) return
-    const isInsideRect = (r: DOMRect | undefined, x: number, y: number) =>
-      r != null && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
-    const onMove = (e: MouseEvent) => {
-      const x = e.clientX
-      const y = e.clientY
-      const btnRect = iconButtonRef.current?.getBoundingClientRect()
-      const prevRect = previewRef.current?.getBoundingClientRect()
-      const onButton = isInsideRect(btnRect, x, y)
-      const onPreview = isInsideRect(prevRect, x, y)
-      if (!onButton && !onPreview) closePreview()
+    if (!showPreview) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePreviewRef.current()
     }
-    document.addEventListener('mousemove', onMove)
-    return () => document.removeEventListener('mousemove', onMove)
-  }, [showPreview, photoUrl])
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [showPreview])
 
   return (
     <>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      <div className="relative inline-flex items-center gap-1">
-        {/* Coque 36×36 px fixe pour éviter que l'icône grandisse et pour stabiliser (plus de tremblement) */}
+      <div className="relative flex flex-col gap-2 w-full max-w-[200px]">
+        {/* Ligne 1 : icône 36×36 */}
         <div className="shrink-0 overflow-hidden rounded-lg border border-gray-300" style={{ width: 36, height: 36 }}>
           <button
-            ref={iconButtonRef}
             type="button"
             onClick={handleIconClick}
-            onMouseEnter={handleIconMouseEnter}
-            onMouseLeave={handleIconMouseLeave}
             className="w-full h-full flex items-center justify-center bg-gray-50 hover:bg-purple-50 border-0 rounded-lg transition-colors"
             style={{ minWidth: 0, minHeight: 0 }}
-            title={photoUrl ? `Changer la photo — survol pour agrandir — ${categoryLabel}` : `Ajouter une photo — ${categoryLabel}`}
+            title={photoUrl ? `Changer la photo — ${categoryLabel}` : `Ajouter une photo — ${categoryLabel}`}
           >
             {photoUrl ? (
               <img src={photoUrl} alt="" className="pointer-events-none object-cover" style={{ width: 36, height: 36, minWidth: 0, minHeight: 0, maxWidth: 36, maxHeight: 36 }} />
@@ -248,29 +215,66 @@ function PhotoIcon({
             )}
           </button>
         </div>
-        {photoUrl && showPreview && previewPosition && typeof document !== 'undefined' &&
+        {/* Ligne 2 : Aperçu et Supprimer (toujours visibles sous l'icône) */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={openPreview}
+            disabled={!photoUrl}
+            className="text-sm text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            Aperçu de l'image
+          </button>
+          {photoUrl && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(null) }}
+              className="text-sm text-gray-500 hover:text-red-600 hover:underline"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+        {showPreview && (previewPhotoUrlRef.current || photoUrl) && typeof document !== 'undefined' &&
           createPortal(
+            (() => {
+              const displayUrl = previewPhotoUrlRef.current || photoUrl || ''
+              return (
             <>
-              {/* Overlay plein écran : clic ou souris dessus = fermer la prévisualisation */}
+              {/* Fond semi-transparent : clic = fermer */}
               <div
-                className="fixed inset-0 z-[9998] cursor-default"
-                style={{ background: 'transparent' }}
-                onMouseEnter={() => closePreviewRef.current()}
+                className="fixed inset-0 z-[9998] bg-black/50 cursor-default"
                 onMouseDown={() => closePreviewRef.current()}
                 onClick={() => closePreviewRef.current()}
                 aria-hidden
               />
               <div
                 ref={previewRef}
-                className="fixed z-[9999] w-[240px] rounded-lg shadow-xl border border-gray-200 bg-white p-1.5 will-change-transform"
-                style={{
-                  left: previewPosition.left,
-                  top: previewPosition.top - 8,
-                  transform: 'translateY(-100%)',
-                }}
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none"
+                aria-hidden
+              >
+              <div
+                className="w-[280px] max-h-[85vh] rounded-xl shadow-2xl border border-gray-200 bg-white p-2 pointer-events-auto"
+                style={{ contain: 'paint', transform: 'translateZ(0)' }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
               >
                 <div className="relative">
-                  <img src={photoUrl} alt={categoryLabel} className="w-full h-auto max-h-[240px] object-contain rounded block" />
+                  {/* Div en background au lieu de <img> pour supprimer tout comportement natif (hover, tooltip) qui provoquait le clignotement. */}
+                  <div
+                    role="img"
+                    aria-label={categoryLabel}
+                    className="w-full rounded bg-gray-100"
+                    style={{
+                      minHeight: 200,
+                      maxHeight: '60vh',
+                      height: '50vh',
+                      backgroundImage: `url(${displayUrl})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                    }}
+                  />
                   <div className="absolute top-1 right-1 flex items-center gap-1">
                   <button
                     type="button"
@@ -281,7 +285,17 @@ function PhotoIcon({
                     ✕
                   </button>
                 </div>
-                <div className="absolute bottom-2 right-2 flex gap-1.5">
+                <div className="absolute bottom-2 right-2 flex flex-wrap gap-1.5 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="w-8 h-8 rounded-full bg-blue-500/90 text-white flex items-center justify-center hover:bg-blue-600 shadow"
+                      title="Changer la photo"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6a.996.996 0 001.414 0l1.586-1.586a2 2 0 000-2.828l-4.586-4.586a2 2 0 00-2.828 0L8 16" />
+                      </svg>
+                    </button>
                     <button
                       type="button"
                       onClick={() => { onChange(null); closePreview() }}
@@ -305,19 +319,12 @@ function PhotoIcon({
                   </div>
                 </div>
               </div>
-            </>,
+              </div>
+            </>
+              )
+            })(),
             document.body
           )}
-        {photoUrl && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onChange(null) }}
-            className="text-xs text-gray-500 hover:text-red-600"
-            title="Supprimer la photo"
-          >
-            Supprimer
-          </button>
-        )}
       </div>
     </>
   )
