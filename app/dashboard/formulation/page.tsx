@@ -1644,6 +1644,7 @@ export default function FormulationPage() {
                 >
                   {produitFiniSaving ? 'Enregistrement…' : 'Enregistrer ce calcul'}
                 </button>
+                {produitFiniSaveError && (
                   <p className="text-sm text-red-600 mt-2">{produitFiniSaveError}</p>
                 )}
                 {produitFiniShowTableHelp && (
