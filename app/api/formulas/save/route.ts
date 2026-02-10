@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       is_active: payload.is_active ?? false,
       improvement_goal: payload.improvement_goal?.trim() || null,
       organization_id: profile.organization_id,
+      user_id: user.id,
     }
 
     const nameTrim = (payload.name || '').trim()
